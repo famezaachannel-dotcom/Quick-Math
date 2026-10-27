@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Quick Math - คิดเลขด่วน</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Font Prompt -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Prompt', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        /* Responsive Container Fix */
+        .mobile-screen {
+            max-width: 430px;
+            width: 100%;
+            height: 100vh;
+            max-height: 900px;
+        }
+
+        /* Custom Button Press Animations */
+        .btn-press {
+            transition: transform 0.05s ease, filter 0.05s ease;
+        }
+        .btn-press:active {
+            transform: scale(0.92);
+            filter: brightness(0.9);
+        }
+
+        /* Banknote Colors matching the prompt layout */
+        .bg-coin { background-color: #e5e7eb; border: 2px solid #d1d5db; color: #1f2937; }
+        .bg-note-20 { background-color: #bbf7d0; color: #166534; border: 2px solid #86efac; }
+        .bg-note-50 { background-color: #bfdbfe; color: #1e40af; border: 2px solid #93c5fd; }
+        .bg-note-100 { background-color: #fecaca; color: #991b1b; border: 2px solid #fca5a5; }
+        .bg-note-500 { background-color: #e9d5ff; color: #6b21a8; border: 2px solid #d8b4fe; }
+        .bg-note-1000 { background-color: #fecdd3; color: #9f1239; border: 2px solid #fda4af; }
+
+        /* Screen Shake effect on mistake */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+        .animate-shake {
+            animation: shake 0.3s ease-in-out;
+        }
+
+        /* Success Pulse */
+        @keyframes successPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+            100% { transform: scale(1); }
+        }
+        .animate-success {
+            animation: successPulse 0.25s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 min-h-screen flex items-center justify-center p-0 md:p-4 text-slate-800">
+
+    <div class="mobile-screen bg-white rounded-none md:rounded-3xl shadow-2xl flex flex-col justify-between overflow-hidden relative border-0 md:border-4 border-slate-700">
+
+        <!-- ================= START SCREEN ================= -->
+        <div id="start-screen" class="absolute inset-0 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 z-30 flex flex-col justify-between p-6 pb-20 text-white text-center">
+            <div class="mt-8 space-y-3">
+                <div class="inline-block bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-full text-xs font-semibold tracking-wider uppercase">
+                    Esports Speed Challenge
+                </div>
+                <h1 class="text-4xl font-extrabold tracking-tight drop-shadow-md">
+                    ⚡ Quick Math
+                </h1>
+                <p class="text-2xl font-bold text-yellow-300 drop-shadow">
+                    คิดเลขด่วน
+                </p>
+                <p class="text-indigo-100 text-sm max-w-xs mx-auto">
+                    กดนับเงินบวกเลขให้ตรงเป้าหมาย ก่อนที่เวลาจะหมดลง!
+                </p>
+            </div>
+
+            <div class="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/20 space-y-3">
+                <div class="text-xs text-indigo-200">สถิติสูงสุดของคุณ (High Score)</div>
+                <div id="high-score-display" class="text-4xl font-black text-yellow-300">0</div>
+                <div class="text-xs text-indigo-100 pt-2 border-t border-white/10">
+                    💡 **กติกา:** บวกเงินให้เท่ากับโจทย์เป๊ะๆ ห้ามเกิน! ยิ่งได้แต้มเยอะ เวลายิ่งหมดไว!
+                </div>
+            </div>
+
+            <!-- Start Button moved up with extra bottom margin -->
+            <div class="mb-6">
+                <button id="btn-start" class="btn-press w-full py-4 bg-yellow-400 hover:bg-yellow-300 text-slate-900 font-extrabold text-xl rounded-2xl shadow-lg border-b-4 border-yellow-600 transition">
+                    เริ่มเล่นเกมเลย! 🎮
+                </button>
+            </div>
+        </div>
+
+        <!-- ================= MAIN GAME UI ================= -->
+        <!-- 1. TOP HEADER & TIMER BAR -->
+        <div class="p-4 pt-6 bg-slate-50 border-b border-slate-200 flex flex-col items-center">
+            <!-- Score & Level Display -->
+            <div class="w-full flex justify-between items-center mb-2 px-1">
+                <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    ด่าน: <span id="level-display" class="text-indigo-600 text-sm">1</span>
+                </div>
+                <div class="text-sm font-extrabold text-slate-700">
+                    <span id="score-display">0</span> คะแนน
+                </div>
+            </div>
+
+            <!-- Time Bar (Red on Left, Green on Right - Revealing/Cropping from Right to Left) -->
+            <div class="w-full bg-slate-200 h-5 rounded-full overflow-hidden p-0.5 shadow-inner border border-slate-300 relative flex justify-start">
+                <div id="timer-bar-container" class="h-full rounded-full overflow-hidden transition-all duration-75" style="width: 100%;">
+                    <!-- Fixed Gradient Background: Red (Left) to Green (Right) -->
+                    <div class="h-full w-full bg-gradient-to-r from-red-500 via-amber-400 to-emerald-500 rounded-full" style="min-width: 100%;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. MAIN DISPLAY AREA (TARGET & CURRENT SUM) -->
+        <div class="flex-none flex flex-col items-center justify-center p-4 pt-6 space-y-4">
+            <!-- Target Amount Display -->
+            <div class="text-center">
+                <span class="text-xs font-semibold text-slate-400 block mb-1">ยอดเงินที่ต้องการ</span>
+                <div id="target-display" class="text-5xl font-black text-slate-900 tracking-tight transition-transform">
+                    1,980
+                </div>
+            </div>
+
+            <!-- Current Sum Container & Undo Button (Based on exact wireframe) -->
+            <div class="w-full max-w-xs flex items-center justify-center gap-3">
+                <!-- Undo / Clear Button -->
+                <button id="btn-undo" class="btn-press px-3 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-300 shadow-sm flex items-center justify-center whitespace-nowrap">
+                    ย้อนกลับ
+                </button>
+
+                <!-- Current Sum Display Box (Red Frame from Layout) -->
+                <div id="sum-box" class="flex-1 border-4 border-red-500 rounded-2xl py-3 px-4 bg-white shadow-md text-center transition-colors">
+                    <div id="current-sum-display" class="text-3xl font-bold text-slate-800">
+                        0
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. BUTTONS GRID AREA (Moved Directly Under Target/Sum display, leaving large bottom gap) -->
+        <div class="p-4 mb-24 bg-slate-100 rounded-3xl border border-slate-200 space-y-3 shadow-sm mx-3">
+            <!-- Coin Row (Circular Buttons: 1, 2, 5, 10) -->
+            <div class="grid grid-cols-4 gap-3">
+                <button data-value="1" class="btn-press btn-money bg-coin aspect-square rounded-full font-extrabold text-xl flex items-center justify-center shadow-md">1</button>
+                <button data-value="2" class="btn-press btn-money bg-coin aspect-square rounded-full font-extrabold text-xl flex items-center justify-center shadow-md">2</button>
+                <button data-value="5" class="btn-press btn-money bg-coin aspect-square rounded-full font-extrabold text-xl flex items-center justify-center shadow-md">5</button>
+                <button data-value="10" class="btn-press btn-money bg-coin aspect-square rounded-full font-extrabold text-xl flex items-center justify-center shadow-md">10</button>
+            </div>
+
+            <!-- Banknotes Row 1 (Rectangular Buttons: 20, 50, 100) -->
+            <div class="grid grid-cols-3 gap-3">
+                <button data-value="20" class="btn-press btn-money bg-note-20 py-3 rounded-2xl font-extrabold text-2xl flex items-center justify-center shadow-md">20</button>
+                <button data-value="50" class="btn-press btn-money bg-note-50 py-3 rounded-2xl font-extrabold text-2xl flex items-center justify-center shadow-md">50</button>
+                <button data-value="100" class="btn-press btn-money bg-note-100 py-3 rounded-2xl font-extrabold text-2xl flex items-center justify-center shadow-md">100</button>
+            </div>
+
+            <!-- Banknotes Row 2 (Rectangular Buttons: 500, 1000) -->
+            <div class="grid grid-cols-2 gap-3">
+                <button data-value="500" class="btn-press btn-money bg-note-500 py-3.5 rounded-2xl font-extrabold text-2xl flex items-center justify-center shadow-md">500</button>
+                <button data-value="1000" class="btn-press btn-money bg-note-1000 py-3.5 rounded-2xl font-extrabold text-2xl flex items-center justify-center shadow-md">1000</button>
+            </div>
+        </div>
+
+        <!-- ================= GAME OVER MODAL ================= -->
+        <div id="game-over-screen" class="hidden absolute inset-0 bg-slate-900/80 backdrop-blur-sm z-40 flex items-center justify-center p-6">
+            <div class="bg-white rounded-3xl p-6 w-full max-w-xs text-center shadow-2xl space-y-4 border border-slate-100 animate-success">
+                <div class="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto text-3xl font-extrabold">
+                    ⏰
+                </div>
+                <div>
+                    <h2 class="text-2xl font-extrabold text-slate-800">จบเกม! (Game Over)</h2>
+                    <p id="game-over-reason" class="text-xs text-slate-500 mt-1">เวลาหมดลงแล้ว!</p>
+                </div>
+
+                <div class="bg-slate-50 p-4 rounded-2xl space-y-2 border border-slate-200">
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-slate-500">คะแนนรอบนี้:</span>
+                        <span id="final-score" class="font-extrabold text-indigo-600 text-lg">0</span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-slate-500">ทอนเงินสำเร็จ:</span>
+                        <span id="final-orders" class="font-bold text-slate-800">0 ออเดอร์</span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm pt-2 border-t border-slate-200">
+                        <span class="text-slate-500">คะแนนสูงสุด:</span>
+                        <span id="modal-high-score" class="font-bold text-amber-500">0</span>
+                    </div>
+                </div>
+
+                <button id="btn-restart" class="btn-press w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-lg rounded-xl shadow-lg shadow-indigo-200">
+                    เล่นอีกครั้ง 🔄
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ================= JAVASCRIPT GAME LOGIC ================= -->
+    <script>
+        // Game State Variables
+        let score = 0;
+        let highScore = localStorage.getItem('quick_math_high_score') || 0;
+        let targetAmount = 0;
+        let currentSum = 0;
+        let inputHistory = [];
+        let ordersCompleted = 0;
+        let level = 1;
+
+        // Timer Variables
+        let maxTime = 100; // Percentage (100%)
+        let currentTime = 100;
+        let timerInterval = null;
+        
+        // Dynamic Acceleration Variables
+        let baseDrainRate = 0.35; // ความเร็วตั้งต้น
+        let currentDrainRate = 0.35; // ความเร็วหลอดเวลาปัจจุบัน
+        let gameStartTime = 0; // เวลาที่เริ่มเล่นเกม (Timestamp)
+        let accelerationInterval = null;
+
+        // Web Audio API Sound Effects Generator
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioContext();
+            }
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                const now = audioCtx.currentTime;
+
+                if (type === 'click') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(400, now);
+                    osc.frequency.exponentialRampToValueAtTime(800, now + 0.05);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                    osc.start(now);
+                    osc.stop(now + 0.05);
+                } else if (type === 'success') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(523.25, now); // C5
+                    osc.frequency.setValueAtTime(659.25, now + 0.08); // E5
+                    osc.frequency.setValueAtTime(783.99, now + 0.16); // G5
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                } else if (type === 'error') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(180, now);
+                    osc.frequency.linearRampToValueAtTime(110, now + 0.2);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                    osc.start(now);
+                    osc.stop(now + 0.2);
+                }
+            } catch (e) {
+                // Ignore audio errors if restricted by browser
+            }
+        }
+
+        // DOM Elements
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const btnStart = document.getElementById('btn-start');
+        const btnRestart = document.getElementById('btn-restart');
+        const btnUndo = document.getElementById('btn-undo');
+        
+        const scoreDisplay = document.getElementById('score-display');
+        const levelDisplay = document.getElementById('level-display');
+        const highScoreDisplay = document.getElementById('high-score-display');
+        const targetDisplay = document.getElementById('target-display');
+        const currentSumDisplay = document.getElementById('current-sum-display');
+        const timerBarContainer = document.getElementById('timer-bar-container');
+        const sumBox = document.getElementById('sum-box');
+
+        const finalScore = document.getElementById('final-score');
+        const finalOrders = document.getElementById('final-orders');
+        const modalHighScore = document.getElementById('modal-high-score');
+        const gameOverReason = document.getElementById('game-over-reason');
+
+        // Init High Score UI
+        highScoreDisplay.textContent = parseInt(highScore).toLocaleString();
+
+        // Target Amount Generator (Random denominations mix)
+        function generateTarget() {
+            const denoms = [1, 2, 5, 10, 20, 50, 100, 500, 1000];
+            let target = 0;
+
+            if (level === 1) {
+                const easyTargets = [15, 25, 40, 50, 75, 85, 110, 135, 150];
+                target = easyTargets[Math.floor(Math.random() * easyTargets.length)];
+            } else if (level === 2) {
+                const count = Math.floor(Math.random() * 3) + 2;
+                for (let i = 0; i < count; i++) {
+                    const pool = [5, 10, 20, 50, 100];
+                    target += pool[Math.floor(Math.random() * pool.length)];
+                }
+            } else if (level <= 4) {
+                const count = Math.floor(Math.random() * 4) + 3;
+                for (let i = 0; i < count; i++) {
+                    const pool = [1, 2, 5, 10, 20, 50, 100, 500];
+                    target += pool[Math.floor(Math.random() * pool.length)];
+                }
+            } else if (level <= 7) {
+                const count = Math.floor(Math.random() * 5) + 3;
+                for (let i = 0; i < count; i++) {
+                    const pool = [1, 2, 5, 10, 20, 50, 100, 500, 1000];
+                    target += pool[Math.floor(Math.random() * pool.length)];
+                }
+                if (target < 500) target += 500;
+            } else {
+                const count = Math.floor(Math.random() * 6) + 4;
+                for (let i = 0; i < count; i++) {
+                    target += denoms[Math.floor(Math.random() * denoms.length)];
+                }
+                target = Math.min(target, 4999);
+            }
+
+            if (target === targetAmount) {
+                target += (Math.random() > 0.5 ? 5 : -2);
+            }
+
+            return Math.max(target, 7);
+        }
+
+        // Start Game Logic
+        function startGame() {
+            initAudio();
+            score = 0;
+            ordersCompleted = 0;
+            level = 1;
+            currentTime = 100;
+            baseDrainRate = 0.35;
+            currentDrainRate = 0.35;
+            gameStartTime = Date.now();
+
+            scoreDisplay.textContent = '0';
+            levelDisplay.textContent = '1';
+
+            startScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+
+            nextOrder();
+            startTimer();
+            startSpeedScaling();
+        }
+
+        // Speed Scaling Interval (ปรับเวลาให้เร็วขึ้นเรื่อยๆ ทุกๆ 4 วินาที)
+        function startSpeedScaling() {
+            if (accelerationInterval) clearInterval(accelerationInterval);
+            
+            accelerationInterval = setInterval(() => {
+                if (currentTime <= 0) return;
+                
+                // คำนวณเวลาที่ผ่านไปเป็นวินาที
+                const elapsedSeconds = (Date.now() - gameStartTime) / 1000;
+                
+                // ความไวจะค่อยๆ เพิ่มขึ้นเรื่อยๆ ตามเวลาสะสมที่เล่นเกม
+                currentDrainRate = baseDrainRate + (elapsedSeconds * 0.015);
+            }, 1000);
+        }
+
+        // Generate Next Order Target
+        function nextOrder() {
+            targetAmount = generateTarget();
+            currentSum = 0;
+            inputHistory = [];
+            
+            // รีเซ็ตหลอดเวลาให้เต็ม 100% ทุกด่าน
+            currentTime = 100;
+            timerBarContainer.style.width = '100%';
+
+            targetDisplay.textContent = targetAmount.toLocaleString();
+            updateSumDisplay();
+
+            // Pop animation on target
+            targetDisplay.classList.add('animate-success');
+            setTimeout(() => targetDisplay.classList.remove('animate-success'), 250);
+        }
+
+        // Update Sum Display
+        function updateSumDisplay() {
+            currentSumDisplay.textContent = currentSum.toLocaleString();
+            
+            if (currentSum === 0) {
+                sumBox.className = "flex-1 border-4 border-red-500 rounded-2xl py-3 px-4 bg-white shadow-md text-center transition-colors";
+            } else {
+                sumBox.className = "flex-1 border-4 border-amber-400 rounded-2xl py-3 px-4 bg-amber-50 shadow-md text-center transition-colors";
+            }
+        }
+
+        // Handle Add Money Button Click
+        function addMoney(val) {
+            initAudio();
+            if (currentTime <= 0) return;
+
+            currentSum += val;
+            inputHistory.push(val);
+            playSound('click');
+
+            updateSumDisplay();
+
+            // Check Win / Over condition
+            if (currentSum === targetAmount) {
+                // SUCCESS! EXACT MATCH
+                playSound('success');
+                ordersCompleted++;
+                
+                // Calculate Points based on remaining time & current speed
+                const speedBonus = Math.floor(currentTime * 3);
+                const pointsEarned = targetAmount + speedBonus;
+                score += pointsEarned;
+                scoreDisplay.textContent = score.toLocaleString();
+
+                // Level Up every 3 completed orders
+                level = Math.floor(ordersCompleted / 3) + 1;
+                levelDisplay.textContent = level;
+
+                // ไปด่านต่อไป + รีเซ็ตหลอดเวลาใหม่
+                nextOrder();
+            } else if (currentSum > targetAmount) {
+                // OVERPAID! ERROR PENALTY
+                playSound('error');
+                
+                // Shake screen effect
+                document.body.classList.add('animate-shake');
+                setTimeout(() => document.body.classList.remove('animate-shake'), 300);
+
+                // Reset sum for current target as penalty
+                currentSum = 0;
+                inputHistory = [];
+                updateSumDisplay();
+
+                // Time penalty for overpaying
+                currentTime = Math.max(currentTime - 20, 0);
+            }
+        }
+
+        // Undo Last Money Action
+        function undoLastInput() {
+            initAudio();
+            if (inputHistory.length > 0) {
+                playSound('click');
+                const lastVal = inputHistory.pop();
+                currentSum -= lastVal;
+                updateSumDisplay();
+            }
+        }
+
+        // Timer Loop
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+
+            timerInterval = setInterval(() => {
+                currentTime -= currentDrainRate;
+                
+                if (currentTime <= 0) {
+                    currentTime = 0;
+                    triggerGameOver('เวลาหมดลงแล้ว!');
+                }
+
+                // Update Timer Container Width to clip/crop the gradient bar from Right to Left
+                timerBarContainer.style.width = Math.max(currentTime, 0) + '%';
+            }, 50);
+        }
+
+        // Game Over Handler
+        function triggerGameOver(reason) {
+            clearInterval(timerInterval);
+            clearInterval(accelerationInterval);
+            playSound('error');
+
+            // Save High Score
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('quick_math_high_score', highScore);
+                highScoreDisplay.textContent = highScore.toLocaleString();
+            }
+
+            // Update Game Over Modal
+            finalScore.textContent = score.toLocaleString();
+            finalOrders.textContent = ordersCompleted + ' ออเดอร์';
+            modalHighScore.textContent = parseInt(highScore).toLocaleString();
+            gameOverReason.textContent = reason;
+
+            gameOverScreen.classList.remove('hidden');
+        }
+
+        // Event Listeners for Buttons
+        document.querySelectorAll('.btn-money').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const value = parseInt(e.currentTarget.getAttribute('data-value'));
+                addMoney(value);
+            });
+        });
+
+        btnUndo.addEventListener('click', undoLastInput);
+        btnStart.addEventListener('click', startGame);
+        btnRestart.addEventListener('click', startGame);
+
+    </script>
+</body>
+</html>
